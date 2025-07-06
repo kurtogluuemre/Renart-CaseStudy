@@ -1,0 +1,151 @@
+﻿@{
+    ViewData["Title"] = "Product List";
+}
+
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/swiper/swiper-bundle.min.css" />
+
+<div class="container" style="max-width: 1200px; margin: auto; padding: 40px 20px;">
+    <h2 style="text-align: center; font-family: 'Avenir'; font-weight: 400; font-size: 45px;">
+        Product List
+    </h2>
+
+    <div class="row mb-4">
+        <div class="col-md-2">
+            <input type="number" id="minPrice" class="form-control" placeholder="Min Price">
+        </div>
+        <div class="col-md-2">
+            <input type="number" id="maxPrice" class="form-control" placeholder="Max Price">
+        </div>
+        <div class="col-md-2">
+            <input type="number" step="0.1" max="5" min="0" id="minPopularity" class="form-control" placeholder="Min Popularity">
+        </div>
+        <div class="col-md-2">
+            <input type="number" step="0.1" max="5" min="0" id="maxPopularity" class="form-control" placeholder="Max Popularity">
+        </div>
+        <div class="col-md-2">
+            <button id="filterBtn" class="btn btn-primary w-100">Apply Filters</button>
+        </div>
+    </div>
+
+    <div id="product-carousel" class="swiper">
+        <div class="swiper-wrapper"></div>
+        <div class="swiper-button-next"></div>
+        <div class="swiper-button-prev"></div>
+    </div>
+</div>
+
+@section Scripts {
+    <script src="https://cdn.jsdelivr.net/npm/swiper/swiper-bundle.min.js"></script>
+    <script>
+        async function loadProducts(filters = {}) {
+            const query = new URLSearchParams(filters).toString();
+            const response = await fetch(`/api/yuzuk?${query}`);
+            const products = await response.json();
+            const wrapper = document.querySelector(".swiper-wrapper");
+
+            wrapper.innerHTML = products.map(product => renderCard(product)).join("");
+
+            new Swiper('.swiper', {
+                slidesPerView: 1,
+                spaceBetween: 10,
+                navigation: {
+                    nextEl: '.swiper-button-next',
+                    prevEl: '.swiper-button-prev',
+                },
+                breakpoints: {
+                    768: {
+                        slidesPerView: 2,
+                    },
+                    1024: {
+                        slidesPerView: 4,
+                    }
+                }
+            });
+        }
+
+        function renderCard(product) {
+            const colors = Object.keys(product.images);
+            const defaultColor = colors[0];
+            const defaultImage = product.images[defaultColor];
+
+            return `
+                <div class="swiper-slide">
+                    <div class="product-card">
+                        <img src="${defaultImage}" class="product-img" />
+                        <h4 class="product-name">${product.name}</h4>
+                        <p class="product-price">$${product.price.toFixed(2)} USD</p>
+
+                        <div class="color-picker">
+                            ${colors.map(color => `
+                                <span class="color-dot" style="background-color: ${getColorCode(color)}"
+                                    onclick="changeImage(this, '${product.images[color]}')"></span>
+                            `).join('')}
+                        </div>
+                        <div class="color-name">${getColorName(defaultColor)}</div>
+
+                        <div class="rating">${renderStars(product.popularity)} ${product.popularity.toFixed(1)}/5</div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function renderStars(rating) {
+            const fullStars = Math.floor(rating);
+            const hasHalfStar = rating - fullStars >= 0.25 && rating - fullStars < 0.75;
+            const stars = [];
+
+            for (let i = 0; i < 5; i++) {
+                if (i < fullStars) {
+                    stars.push("★");
+                } else if (i === fullStars && hasHalfStar) {
+                    stars.push("☆");
+                } else {
+                    stars.push("☆");
+                }
+            }
+
+            return `<span class="stars">${stars.join('')}</span>`;
+        }
+
+        function getColorName(colorKey) {
+            switch (colorKey.toLowerCase()) {
+                case 'yellow': return 'Yellow Gold';
+                case 'white': return 'White Gold';
+                case 'rose': return 'Rose Gold';
+                default: return '';
+            }
+        }
+
+        function getColorCode(color) {
+            switch (color.toLowerCase()) {
+                case 'yellow': return '#E6CA97';
+                case 'white': return '#D9D9D9';
+                case 'rose': return '#E1AAA9';
+                default: return '#000';
+            }
+        }
+
+        function changeImage(elem, newSrc) {
+            const card = elem.closest('.product-card');
+            const img = card.querySelector('.product-img');
+            img.src = newSrc;
+        }
+
+        document.getElementById("filterBtn").addEventListener("click", () => {
+            const minPrice = document.getElementById("minPrice").value;
+            const maxPrice = document.getElementById("maxPrice").value;
+            const minPopularity = document.getElementById("minPopularity").value;
+            const maxPopularity = document.getElementById("maxPopularity").value;
+
+            const filters = {};
+            if (minPrice) filters.minPrice = minPrice;
+            if (maxPrice) filters.maxPrice = maxPrice;
+            if (minPopularity) filters.minPopularity = minPopularity;
+            if (maxPopularity) filters.maxPopularity = maxPopularity;
+
+            loadProducts(filters);
+        });
+
+        document.addEventListener("DOMContentLoaded", () => loadProducts());
+    </script>
+}
